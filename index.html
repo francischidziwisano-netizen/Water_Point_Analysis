@@ -1,0 +1,1965 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="description" content="Malawi Buffer Analysis Dashboard">
+    <title>Malawi Water Point Analysis Dashboard</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="./resources/ol.css">
+    <link rel="stylesheet" href="resources/fontawesome-all.min.css">
+    <link href="resources/photon-geocoder-autocomplete.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
+    <link rel="stylesheet" href="./resources/qgis2web.css">
+    
+    <style>
+        /* ============================================
+           SIDEBAR BUFFER DASHBOARD
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: rgba(255,255,255,0.04);
+            --border-card: rgba(255,255,255,0.06);
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            /* Buffer Colors - 30m */
+            --buffer-30m-critical: #e74c3c;
+            --buffer-30m-high: #e67e22;
+            --buffer-30m-moderate: #f1c40f;
+            --buffer-30m-low: #2ecc71;
+            --buffer-30m-baseline: #27ae60;
+            
+            /* Buffer Colors - 100m */
+            --buffer-100m-critical: #e74c3c;
+            --buffer-100m-high: #e67e22;
+            --buffer-100m-moderate: #f1c40f;
+            --buffer-100m-low: #2ecc71;
+            --buffer-100m-baseline: #27ae60;
+            
+            --buffer-flagging: #ff6b6b;
+            
+            --shadow: 0 8px 32px rgba(0,0,0,0.4);
+            --radius: 14px;
+            --radius-sm: 10px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* ============================================
+           DASHBOARD LAYOUT
+           ============================================ */
+        .dashboard-sidebar {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        /* ============================================
+           SIDEBAR
+           ============================================ */
+        .sidebar {
+            width: 380px;
+            min-width: 380px;
+            background: var(--bg-secondary);
+            border-right: 1px solid rgba(255,255,255,0.04);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            z-index: 10;
+            transition: transform 0.3s ease, width 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 16px 20px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            flex-shrink: 0;
+        }
+
+        .sidebar-header .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-header .logo i {
+            font-size: 20px;
+            color: #00d4ff;
+            background: rgba(0,212,255,0.08);
+            padding: 6px;
+            border-radius: 10px;
+        }
+
+        .sidebar-header .logo h1 {
+            font-size: 16px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 60%, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar-header .logo .subtitle {
+            font-size: 10px;
+            color: var(--text-secondary);
+            -webkit-text-fill-color: var(--text-secondary);
+            font-weight: 400;
+            display: block;
+        }
+
+        /* ============================================
+           SEARCH IN SIDEBAR
+           ============================================ */
+        .sidebar-search {
+            padding: 10px 16px 12px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-search .gcd-gl {
+            width: 100%;
+        }
+
+        .sidebar-search .gcd-gl-input {
+            width: 100% !important;
+            padding: 8px 12px 8px 36px !important;
+            border-radius: 10px !important;
+            border: 1px solid rgba(255,255,255,0.06) !important;
+            background: rgba(255,255,255,0.04) !important;
+            color: #fff !important;
+            font-size: 12px !important;
+            transition: var(--transition) !important;
+        }
+
+        .sidebar-search .gcd-gl-input::placeholder {
+            color: var(--text-muted) !important;
+        }
+
+        .sidebar-search .gcd-gl-input:focus {
+            background: rgba(255,255,255,0.06) !important;
+            border-color: #00d4ff !important;
+            box-shadow: 0 0 20px rgba(0,212,255,0.06) !important;
+            outline: none !important;
+        }
+
+        .sidebar-search .gcd-gl-btn {
+            left: 12px !important;
+            color: var(--text-muted) !important;
+        }
+
+        /* ============================================
+           CHECKBOX FILTER SECTION
+           ============================================ */
+        .filter-section {
+            padding: 8px 16px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            flex-shrink: 0;
+        }
+
+        .filter-section .filter-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .filter-section .filter-header .filter-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-section .filter-header .filter-label i {
+            font-size: 11px;
+        }
+
+        .filter-section .filter-header .clear-btn {
+            font-size: 8px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.04);
+            background: rgba(255,255,255,0.02);
+            transition: var(--transition);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .filter-section .filter-header .clear-btn:hover {
+            background: rgba(255,107,107,0.08);
+            border-color: rgba(255,107,107,0.15);
+            color: #ff6b6b;
+        }
+
+        .filter-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .filter-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 4px 12px 4px 8px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.04);
+            border: 1.5px solid rgba(255,255,255,0.06);
+            transition: var(--transition);
+            user-select: none;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .filter-checkbox:hover {
+            background: rgba(255,255,255,0.08);
+            transform: translateY(-1px);
+        }
+
+        .filter-checkbox input[type="checkbox"] {
+            display: none;
+        }
+
+        .filter-checkbox .custom-check {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            border: 1.5px solid var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .filter-checkbox .custom-check i {
+            font-size: 8px;
+            opacity: 0;
+            transition: var(--transition);
+            color: #fff;
+        }
+
+        .filter-checkbox.active {
+            border-color: rgba(0,212,255,0.2);
+            background: rgba(0,212,255,0.06);
+            color: #fff;
+        }
+
+        .filter-checkbox.active .custom-check {
+            background: #00d4ff;
+            border-color: #00d4ff;
+        }
+
+        .filter-checkbox.active .custom-check i {
+            opacity: 1;
+        }
+
+        .filter-checkbox .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .filter-checkbox .count-badge {
+            font-size: 8px;
+            background: rgba(255,255,255,0.06);
+            padding: 0 6px;
+            border-radius: 10px;
+            color: var(--text-muted);
+        }
+
+        .filter-checkbox.active .count-badge {
+            color: var(--text-secondary);
+        }
+
+        /* Color-specific checkbox styles */
+        .filter-checkbox.critical .custom-check { border-color: var(--buffer-30m-critical); }
+        .filter-checkbox.critical.active .custom-check { background: var(--buffer-30m-critical); border-color: var(--buffer-30m-critical); }
+        .filter-checkbox.critical.active { border-color: rgba(231,76,60,0.3); }
+
+        .filter-checkbox.high .custom-check { border-color: var(--buffer-30m-high); }
+        .filter-checkbox.high.active .custom-check { background: var(--buffer-30m-high); border-color: var(--buffer-30m-high); }
+        .filter-checkbox.high.active { border-color: rgba(230,126,34,0.3); }
+
+        .filter-checkbox.moderate .custom-check { border-color: var(--buffer-30m-moderate); }
+        .filter-checkbox.moderate.active .custom-check { background: var(--buffer-30m-moderate); border-color: var(--buffer-30m-moderate); }
+        .filter-checkbox.moderate.active { border-color: rgba(241,196,15,0.3); }
+
+        .filter-checkbox.low .custom-check { border-color: var(--buffer-30m-low); }
+        .filter-checkbox.low.active .custom-check { background: var(--buffer-30m-low); border-color: var(--buffer-30m-low); }
+        .filter-checkbox.low.active { border-color: rgba(46,204,113,0.3); }
+
+        .filter-checkbox.flagging .custom-check { border-color: var(--buffer-flagging); }
+        .filter-checkbox.flagging.active .custom-check { background: var(--buffer-flagging); border-color: var(--buffer-flagging); }
+        .filter-checkbox.flagging.active { border-color: rgba(255,107,107,0.3); }
+
+        /* ============================================
+           CARDS SECTION
+           ============================================ */
+        .cards-section {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px 16px;
+        }
+
+        .cards-section::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .cards-section::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .cards-section::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        /* ---- Section Labels ---- */
+        .section-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            font-weight: 700;
+            padding: 10px 0 8px 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-label i {
+            font-size: 12px;
+        }
+
+        .section-label .badge-count {
+            background: rgba(255,255,255,0.04);
+            padding: 1px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .section-separator {
+            border: none;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            margin: 4px 0 8px;
+        }
+
+        /* ---- Summary Stats Row ---- */
+        .summary-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .summary-stat {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            text-align: center;
+        }
+
+        .summary-stat .number {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.2;
+        }
+
+        .summary-stat .number .suffix {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+
+        .summary-stat .label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .summary-stat .icon {
+            font-size: 14px;
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        .summary-stat .icon.flagging { color: var(--buffer-flagging); }
+        .summary-stat .icon.thirty { color: var(--buffer-30m-critical); }
+        .summary-stat .icon.hundred { color: var(--buffer-100m-critical); }
+
+        /* ---- Featured Card (100m Flagging) ---- */
+        .featured-card {
+            background: linear-gradient(135deg, rgba(255,107,107,0.06), rgba(255,107,107,0.01));
+            border: 1px solid rgba(255,107,107,0.12);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .featured-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #ff6b6b, #ff6b6b, transparent);
+        }
+
+        .featured-card .card-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .featured-card .card-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .featured-card .card-left .icon {
+            font-size: 24px;
+            color: #ff6b6b;
+            background: rgba(255,107,107,0.08);
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .featured-card .card-left .info .label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .featured-card .card-left .info .number {
+            font-size: 28px;
+            font-weight: 800;
+            color: #ff6b6b;
+            line-height: 1.1;
+        }
+
+        .featured-card .card-left .info .number .suffix {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        .featured-card .badge {
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #ff6b6b;
+            background: rgba(255,107,107,0.06);
+            padding: 2px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,107,107,0.06);
+        }
+
+        /* ---- Buffer Cards Grid ---- */
+        .buffer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .buffer-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .buffer-card .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .buffer-card .card-header .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .buffer-card .card-header .label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .buffer-card .card-header .type {
+            font-size: 8px;
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .buffer-card .card-number {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .buffer-card .card-sub {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+
+        /* ---- Color-specific card numbers ---- */
+        /* 30m Cards */
+        .buffer-card.critical .card-number { color: var(--buffer-30m-critical); }
+        .buffer-card.high .card-number { color: var(--buffer-30m-high); }
+        .buffer-card.moderate .card-number { color: var(--buffer-30m-moderate); }
+        .buffer-card.low .card-number { color: var(--buffer-30m-low); }
+        .buffer-card.baseline .card-number { color: var(--buffer-30m-baseline); }
+
+        /* 100m Cards */
+        .buffer-card.critical-100 .card-number { color: var(--buffer-100m-critical); }
+        .buffer-card.high-100 .card-number { color: var(--buffer-100m-high); }
+        .buffer-card.moderate-100 .card-number { color: var(--buffer-100m-moderate); }
+        .buffer-card.low-100 .card-number { color: var(--buffer-100m-low); }
+        .buffer-card.baseline-100 .card-number { color: var(--buffer-100m-baseline); }
+
+        /* Type badges */
+        .buffer-card .type.critical { background: rgba(231,76,60,0.15); color: #e74c3c; }
+        .buffer-card .type.high { background: rgba(230,126,34,0.15); color: #e67e22; }
+        .buffer-card .type.moderate { background: rgba(241,196,15,0.15); color: #f1c40f; }
+        .buffer-card .type.low { background: rgba(46,204,113,0.15); color: #2ecc71; }
+        .buffer-card .type.baseline { background: rgba(39,174,96,0.15); color: #27ae60; }
+
+        /* ============================================
+           MAP AREA
+           ============================================ */
+        .map-area {
+            flex: 1;
+            position: relative;
+            background: var(--bg-primary);
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* ============================================
+           MAP CONTROLS
+           ============================================ */
+        .map-controls {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .map-controls button {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-controls button:hover {
+            background: rgba(0,212,255,0.08);
+            border-color: #00d4ff;
+            color: #00d4ff;
+            transform: scale(1.05);
+        }
+
+        /* ============================================
+           FILTER ACTIVE INDICATOR
+           ============================================ */
+        .filter-active-indicator {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0,212,255,0.15);
+            border-radius: 30px;
+            padding: 4px 16px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            display: none;
+            pointer-events: none;
+        }
+
+        .filter-active-indicator.visible {
+            display: block;
+        }
+
+        .filter-active-indicator strong {
+            color: #fff;
+        }
+
+        .filter-active-indicator .clear-indicator {
+            cursor: pointer;
+            color: var(--text-muted);
+            margin-left: 6px;
+            font-size: 10px;
+        }
+
+        .filter-active-indicator .clear-indicator:hover {
+            color: #ff6b6b;
+        }
+
+        /* ============================================
+           STATUS BAR
+           ============================================ */
+        .status-bar-map {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 50px;
+            padding: 4px 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .status-bar-map .item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-bar-map .item i {
+            color: #00d4ff;
+            font-size: 11px;
+        }
+
+        .status-bar-map .item .val {
+            color: #fff;
+            font-weight: 500;
+            font-family: 'SF Mono', 'Monaco', monospace;
+            font-size: 10px;
+        }
+
+        /* ============================================
+           POPUP
+           ============================================ */
+        .ol-popup {
+            background: rgba(10,14,26,0.96);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: var(--radius);
+            padding: 14px 18px;
+            min-width: 180px;
+            max-width: 280px;
+            color: var(--text-primary);
+            box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+        }
+
+        .ol-popup:before {
+            border-top-color: rgba(10,14,26,0.96);
+        }
+
+        .ol-popup .ol-popup-closer {
+            color: var(--text-muted);
+            font-size: 18px;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .ol-popup .ol-popup-closer:hover {
+            color: #fff;
+        }
+
+        .ol-popup #popup-content .popup-title {
+            font-weight: 700;
+            font-size: 14px;
+            color: #fff;
+            border-bottom: 2px solid rgba(0,212,255,0.15);
+            padding-bottom: 4px;
+            margin-bottom: 4px;
+        }
+
+        /* ============================================
+           OL CONTROL OVERRIDES
+           ============================================ */
+        .ol-control {
+            background: rgba(0,0,0,0.6) !important;
+            backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(255,255,255,0.06) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+        }
+
+        .ol-control button {
+            background: transparent !important;
+            color: var(--text-secondary) !important;
+            border-radius: 6px !important;
+            transition: var(--transition) !important;
+            font-size: 14px !important;
+        }
+
+        .ol-control button:hover {
+            background: rgba(0,212,255,0.08) !important;
+            color: #00d4ff !important;
+        }
+
+        .ol-zoom {
+            top: auto !important;
+            bottom: 70px !important;
+            right: 12px !important;
+            left: auto !important;
+        }
+
+        .layer-switcher {
+            top: auto !important;
+            bottom: 120px !important;
+            right: 12px !important;
+            left: auto !important;
+        }
+
+        .layer-switcher .panel {
+            background: rgba(10,14,26,0.96) !important;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.06) !important;
+            border-radius: var(--radius) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .layer-switcher .panel li {
+            color: var(--text-secondary) !important;
+            font-size: 12px !important;
+        }
+
+        .layer-switcher .panel li:hover {
+            background: rgba(0,212,255,0.04) !important;
+        }
+
+        .ol-attribution {
+            background: rgba(0,0,0,0.5) !important;
+            backdrop-filter: blur(8px);
+            border-radius: 20px !important;
+            padding: 2px 10px !important;
+            font-size: 9px !important;
+            bottom: 6px !important;
+            right: 6px !important;
+            color: var(--text-muted) !important;
+        }
+
+        .ol-attribution a {
+            color: #00d4ff !important;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 1024px) {
+            .sidebar { width: 320px; min-width: 320px; }
+            .buffer-grid { gap: 6px; }
+            .buffer-card .card-number { font-size: 20px; }
+            .featured-card .card-left .info .number { font-size: 24px; }
+            .filter-checkbox { font-size: 9px; padding: 3px 10px 3px 6px; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                min-width: 100%;
+                height: 45vh;
+                border-right: none;
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                z-index: 20;
+                background: var(--bg-primary);
+            }
+
+            .sidebar.collapsed {
+                height: 56px;
+                overflow: hidden;
+            }
+            .sidebar.collapsed .sidebar-header { padding: 10px 16px; }
+            .sidebar.collapsed .sidebar-header .logo h1 { font-size: 14px; }
+            .sidebar.collapsed .sidebar-search,
+            .sidebar.collapsed .filter-section,
+            .sidebar.collapsed .cards-section { display: none; }
+
+            .sidebar-toggle { display: flex !important; }
+            .map-area { height: 55vh; }
+
+            .status-bar-map {
+                bottom: 8px;
+                padding: 3px 12px;
+                gap: 10px;
+                font-size: 8px;
+                width: 92%;
+                border-radius: 30px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .status-bar-map .item .val { font-size: 8px; }
+
+            .map-controls { right: 8px; }
+            .map-controls button { width: 30px; height: 30px; font-size: 12px; }
+            .ol-zoom { bottom: 60px !important; right: 8px !important; }
+            .layer-switcher { bottom: 100px !important; right: 8px !important; }
+
+            /* .summary-stats { grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+            .summary-stat { padding: 6px 8px; }
+            .summary-stat .number { font-size: 18px; } */
+
+            .buffer-grid { grid-template-columns: 1fr 1fr; gap: 4px; }
+            .buffer-card { padding: 6px 8px; }
+            .buffer-card .card-number { font-size: 16px; }
+
+            .featured-card { padding: 10px 12px; }
+            .featured-card .card-left .icon { width: 32px; height: 32px; font-size: 18px; }
+            .featured-card .card-left .info .number { font-size: 20px; }
+
+            .ol-popup { max-width: 180px; padding: 10px 12px; font-size: 11px; }
+            .filter-active-indicator { font-size: 8px; padding: 3px 12px; bottom: 50px; }
+
+            .filter-checkbox { font-size: 8px; padding: 2px 8px 2px 4px; }
+            .filter-checkbox .custom-check { width: 12px; height: 12px; }
+            .filter-checkbox .dot { width: 6px; height: 6px; }
+        }
+
+        @media (max-width: 480px) {
+            .sidebar-header .logo h1 { font-size: 13px; }
+            .sidebar-header .logo i { font-size: 16px; padding: 4px; }
+
+            /* .summary-stats { grid-template-columns: 1fr 1fr 1fr; }
+            .summary-stat .number { font-size: 15px; }
+            .summary-stat .label { font-size: 7px; } */
+
+            .buffer-grid { grid-template-columns: 1fr 1fr; gap: 3px; }
+            .buffer-card { padding: 4px 6px; border-radius: 6px; }
+            .buffer-card .card-number { font-size: 14px; }
+            .buffer-card .card-header .label { font-size: 7px; }
+
+            .featured-card .card-left .info .number { font-size: 18px; }
+            .featured-card .card-left .info .label { font-size: 8px; }
+        }
+
+        /* ============================================
+           SIDEBAR TOGGLE (Mobile)
+           ============================================ */
+        .sidebar-toggle {
+            display: none;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: var(--text-primary);
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ==========================================
+    SIDEBAR DASHBOARD - BUFFER ANALYSIS
+    ========================================== -->
+    <div class="dashboard-sidebar">
+
+        <!-- ===== SIDEBAR ===== -->
+        <div class="sidebar" id="sidebar">
+            
+            <!-- Header -->
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-buffer"></i>
+                    <div>
+                        <h1>
+                            Water Point Analysis
+                            <span class="subtitle">Check filters to view</span>
+                        </h1>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="sidebar-search" id="sidebarSearch"></div>
+
+            <!-- ===== CHECKBOX FILTER SECTION ===== -->
+            <div class="filter-section" id="filterSection">
+                <div class="filter-header">
+                    <div class="filter-label">
+                        <i class="fas fa-filter"></i> Filter Categories
+                    </div>
+                    <span class="clear-btn" id="clearFilters">✕ Clear All</span>
+                </div>
+                <div class="filter-chips" id="filterChips">
+                    <!-- Flagging -->
+                    <label class="filter-checkbox flagging" data-filter="flagging">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-flagging);"></span>
+                        <span>Priority Areas</span>
+                        <span class="count-badge" id="filter-flagging">0</span>
+                    </label>
+
+                    <!-- 30m Categories -->
+                    <label class="filter-checkbox critical" data-filter="30m-critical">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-30m-critical);"></span>
+                        <span>30m Critical</span>
+                        <span class="count-badge" id="filter-30m-critical">0</span>
+                    </label>
+
+                    <label class="filter-checkbox high" data-filter="30m-high">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-30m-high);"></span>
+                        <span>30m High</span>
+                        <span class="count-badge" id="filter-30m-high">0</span>
+                    </label>
+
+                    <label class="filter-checkbox moderate" data-filter="30m-moderate">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-30m-moderate);"></span>
+                        <span>30m Moderate</span>
+                        <span class="count-badge" id="filter-30m-moderate">0</span>
+                    </label>
+
+                    <label class="filter-checkbox low" data-filter="30m-low">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-30m-low);"></span>
+                        <span>30m Low</span>
+                        <span class="count-badge" id="filter-30m-low">0</span>
+                    </label>
+
+                    <!-- 100m Categories -->
+                    <label class="filter-checkbox critical" data-filter="100m-critical">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-100m-critical);"></span>
+                        <span>100m Critical</span>
+                        <span class="count-badge" id="filter-100m-critical">0</span>
+                    </label>
+
+                    <label class="filter-checkbox high" data-filter="100m-high">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-100m-high);"></span>
+                        <span>100m High</span>
+                        <span class="count-badge" id="filter-100m-high">0</span>
+                    </label>
+
+                    <label class="filter-checkbox moderate" data-filter="100m-moderate">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-100m-moderate);"></span>
+                        <span>100m Moderate</span>
+                        <span class="count-badge" id="filter-100m-moderate">0</span>
+                    </label>
+
+                    <label class="filter-checkbox low" data-filter="100m-low">
+                        <input type="checkbox">
+                        <span class="custom-check"><i class="fas fa-check"></i></span>
+                        <span class="dot" style="background:var(--buffer-100m-low);"></span>
+                        <span>100m Low</span>
+                        <span class="count-badge" id="filter-100m-low">0</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- ===== CARDS SECTION ===== -->
+            <div class="cards-section" id="cardsSection">
+                
+                <!-- Summary Stats -->
+                <!-- <div class="summary-stats">
+                    <div class="summary-stat">
+                        <span class="icon flagging"><i class="fas fa-flag"></i></span>
+                        <div class="number" id="sumFlagging">0</div>
+                        <div class="label">Flagging</div>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="icon thirty"><i class="fas fa-circle"></i></span>
+                        <div class="number" id="sum30m">0</div>
+                        <div class="label">30m Buffers</div>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="icon hundred"><i class="fas fa-circle"></i></span>
+                        <div class="number" id="sum100m">0</div>
+                        <div class="label">100m Buffers</div>
+                    </div>
+                </div> -->
+
+                <!-- ===== Featured: 100m Flagging ===== -->
+                <div class="featured-card">
+                    <div class="card-row">
+                        <div class="card-left">
+                            <div class="icon">
+                                <i class="fas fa-flag"></i>
+                            </div>
+                            <div class="info">
+                                <div class="label">Priority Monitoring</div>
+                                <div class="number" id="flaggingCount">
+                                    0 <span class="suffix">features</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="badge">★ FEATURED</div>
+                    </div>
+                </div>
+
+                <!-- ===== 30m Buffers Section ===== -->
+                <div class="section-label">
+                    <i class="fas fa-circle" style="color:var(--buffer-30m-critical);"></i>
+                    30m Buffers
+                    <span class="badge-count" id="total30m">0 total</span>
+                </div>
+
+                <div class="buffer-grid">
+                    <!-- 30m - Critical (>20) -->
+                    <div class="buffer-card critical">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-30m-critical);"></span>
+                            <span class="label">30m A</span>
+                            <span class="type critical">Critical</span>
+                        </div>
+                        <div class="card-number" id="card-30m-critical">0</div>
+                        <div class="card-sub">> 20 polygons</div>
+                    </div>
+
+                    <!-- 30m - High (11-20) -->
+                    <div class="buffer-card high">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-30m-high);"></span>
+                            <span class="label">30m B</span>
+                            <span class="type high">High</span>
+                        </div>
+                        <div class="card-number" id="card-30m-high">0</div>
+                        <div class="card-sub">11 - 20 polygons</div>
+                    </div>
+
+                    <!-- 30m - Moderate (5-10) -->
+                    <div class="buffer-card moderate">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-30m-moderate);"></span>
+                            <span class="label">30m C</span>
+                            <span class="type moderate">Moderate</span>
+                        </div>
+                        <div class="card-number" id="card-30m-moderate">0</div>
+                        <div class="card-sub">5 - 10 polygons</div>
+                    </div>
+
+                    <!-- 30m - Low (1-4) -->
+                    <div class="buffer-card low">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-30m-low);"></span>
+                            <span class="label">30m D</span>
+                            <span class="type low">Low</span>
+                        </div>
+                        <div class="card-number" id="card-30m-low">0</div>
+                        <div class="card-sub">1 - 4 polygons</div>
+                    </div>
+                </div>
+
+                <hr class="section-separator">
+
+                <!-- ===== 100m Buffers Section ===== -->
+                <div class="section-label">
+                    <i class="fas fa-circle" style="color:var(--buffer-100m-critical);"></i>
+                    100m Buffers
+                    <span class="badge-count" id="total100m">0 total</span>
+                </div>
+
+                <div class="buffer-grid">
+                    <!-- 100m - Critical (>75) -->
+                    <div class="buffer-card critical-100">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-100m-critical);"></span>
+                            <span class="label">100m E</span>
+                            <span class="type critical">Critical</span>
+                        </div>
+                        <div class="card-number" id="card-100m-critical">0</div>
+                        <div class="card-sub">> 75 polygons</div>
+                    </div>
+
+                    <!-- 100m - High (40-75) -->
+                    <div class="buffer-card high-100">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-100m-high);"></span>
+                            <span class="label">100m F</span>
+                            <span class="type high">High</span>
+                        </div>
+                        <div class="card-number" id="card-100m-high">0</div>
+                        <div class="card-sub">40 - 75 polygons</div>
+                    </div>
+
+                    <!-- 100m - Moderate (20-40) -->
+                    <div class="buffer-card moderate-100">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-100m-moderate);"></span>
+                            <span class="label">100m G</span>
+                            <span class="type moderate">Moderate</span>
+                        </div>
+                        <div class="card-number" id="card-100m-moderate">0</div>
+                        <div class="card-sub">20 - 40 polygons</div>
+                    </div>
+
+                    <!-- 100m - Low (5-20) -->
+                    <div class="buffer-card low-100">
+                        <div class="card-header">
+                            <span class="dot" style="background:var(--buffer-100m-low);"></span>
+                            <span class="label">100m H</span>
+                            <span class="type low">Low</span>
+                        </div>
+                        <div class="card-number" id="card-100m-low">0</div>
+                        <div class="card-sub">5 - 20 polygons</div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="display:flex; justify-content:space-between; padding:10px 2px 0; font-size:10px; color:var(--text-muted);">
+                    <span><i class="fas fa-database"></i> Total: <strong id="totalFeatures" style="color:#fff;">0</strong></span>
+                    <span><i class="fas fa-sync-alt"></i> <span id="lastUpdated">--</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== MAP AREA ===== -->
+        <div class="map-area">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <div id="map">
+                <div id="popup" class="ol-popup" style="display:none;">
+                    <a href="#" id="popup-closer" class="ol-popup-closer">&times;</a>
+                    <div id="popup-content"></div>
+                </div>
+            </div>
+
+            <!-- Filter Active Indicator -->
+            <div class="filter-active-indicator" id="filterIndicator">
+                <i class="fas fa-filter" style="color:#00d4ff;"></i>
+                Showing: <strong id="filterDisplayText">All</strong>
+                <span class="clear-indicator" id="clearIndicatorBtn">✕</span>
+            </div>
+
+            <div class="map-controls">
+                <button id="zoomIn" title="Zoom In"><i class="fas fa-plus"></i></button>
+                <button id="zoomOut" title="Zoom Out"><i class="fas fa-minus"></i></button>
+                <button id="resetView" title="Reset View"><i class="fas fa-home"></i></button>
+                <button id="fullscreen" title="Fullscreen"><i class="fas fa-expand"></i></button>
+                <button id="locate" title="My Location"><i class="fas fa-crosshairs"></i></button>
+                <button id="layerToggle" title="Layer Switcher"><i class="fas fa-layer-group"></i></button>
+            </div>
+
+            <div class="status-bar-map">
+                <div class="item">
+                    <i class="fas fa-mouse-pointer"></i>
+                    <span>Cursor: <span class="val" id="statusCursor">--, --</span></span>
+                </div>
+                <div class="item">
+                    <i class="fas fa-ruler"></i>
+                    <span>Scale: <span class="val" id="statusScale">1:--</span></span>
+                </div>
+                <div class="item">
+                    <i class="fas fa-zoom-in"></i>
+                    <span>Zoom: <span class="val" id="statusZoom">--</span></span>
+                </div>
+                <div class="item">
+                    <i class="fas fa-clock"></i>
+                    <span><span class="val" id="statusTime">--</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+    SCRIPTS
+    ========================================== -->
+    <script src="resources/qgis2web_expressions.js"></script>
+    <script src="./resources/functions.js"></script>
+    <script src="./resources/ol.js"></script>
+    <script src="./resources/ol-layerswitcher.js"></script>
+    <script src="resources/photon-geocoder-autocomplete.min.js"></script>
+    <script src="resources/olms.js"></script>
+    
+    <!-- Layers -->
+    <script src="layers/Lilongwe_1.js"></script>
+    <script src="layers/Joined_100m_2.js"></script>
+    <script src="layers/joined30m_3.js"></script>
+    <script src="layers/Joined_100mflaggingvirtual_4.js"></script>
+    <script src="layers/download_5.js"></script>
+    <script src="layers/mzuzu_6.js"></script>
+    <script src="layers/export_7.js"></script>
+    <script src="layers/facilities_8.js"></script>
+    <script src="layers/mwi_admin3_nso_9.js"></script>
+    <script src="layers/mwi_admin2_em_10.js"></script>
+    
+    <!-- Styles -->
+    <script src="styles/Lilongwe_1_style.js"></script>
+    <script src="styles/Joined_100m_2_style.js"></script>
+    <script src="styles/joined30m_3_style.js"></script>
+    <script src="styles/Joined_100mflaggingvirtual_4_style.js"></script>
+    <script src="styles/download_5_style.js"></script>
+    <script src="styles/mzuzu_6_style.js"></script>
+    <script src="styles/export_7_style.js"></script>
+    <script src="styles/facilities_8_style.js"></script>
+    <script src="styles/mwi_admin3_nso_9_style.js"></script>
+    <script src="styles/mwi_admin2_em_10_style.js"></script>
+    
+    <script src="./layers/layers.js" type="text/javascript"></script>
+    <script src="./resources/Autolinker.min.js"></script>
+    <script src="./resources/qgis2web.js"></script>
+
+    <script>
+        // ==========================================
+        // BUFFER DASHBOARD - CHECKBOX FILTERS
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+
+            let mapCheck = setInterval(function() {
+                if (typeof map !== 'undefined' && map) {
+                    clearInterval(mapCheck);
+                    initBufferDashboard(map);
+                }
+            }, 100);
+
+            function initBufferDashboard(map) {
+                console.log('🌍 Initializing Buffer Dashboard with Checkbox Filters...');
+
+                const view = map.getView();
+                const layerGroups = map.getLayers().getArray();
+                
+                // ==========================================
+                // STATE
+                // ==========================================
+                let activeFilters = new Set();
+                let bufferData = {
+                    flagging: 0,
+                    '30m': { total: 0, critical: 0, high: 0, moderate: 0, low: 0 },
+                    '100m': { total: 0, critical: 0, high: 0, moderate: 0, low: 0 }
+                };
+
+                // Store references to buffer layers
+                let bufferLayers = {
+                    '30m': null,
+                    '100m': null,
+                    'flagging': null
+                };
+
+                // Store original layer visibility states
+                let originalVisibility = {};
+
+                // Store each layer's original style so per-feature filtering
+                // can fall back to it for features that stay visible
+                let originalStyles = {};
+
+                // Cache of feature -> category ('critical'|'high'|'moderate'|'low'|'baseline')
+                // so we only classify each feature once instead of on every filter change
+                let featureCategories = {
+                    '30m': new Map(),
+                    '100m': new Map()
+                };
+
+                // Filter display names
+                const filterDisplayNames = {
+                    'flagging': 'Flagging',
+                    '30m-critical': '30m Critical',
+                    '30m-high': '30m High',
+                    '30m-moderate': '30m Moderate',
+                    '30m-low': '30m Low',
+                    '100m-critical': '100m Critical',
+                    '100m-high': '100m High',
+                    '100m-moderate': '100m Moderate',
+                    '100m-low': '100m Low'
+                };
+
+                // Map filter to layer names
+                const filterLayerMap = {
+                    'flagging': 'Joined_100mflaggingvirtual_4',
+                    '30m-critical': 'joined30m_3',
+                    '30m-high': 'joined30m_3',
+                    '30m-moderate': 'joined30m_3',
+                    '30m-low': 'joined30m_3',
+                    '100m-critical': 'Joined_100m_2',
+                    '100m-high': 'Joined_100m_2',
+                    '100m-moderate': 'Joined_100m_2',
+                    '100m-low': 'Joined_100m_2'
+                };
+
+                // ==========================================
+                // CATEGORIZATION FUNCTIONS
+                // ==========================================
+                // polygonCount = value of OBJECTID_c = number of polygons overlapping
+                // this buffer feature. Severity is graded directly off that count.
+                function categorize30m(polygonCount) {
+                    if (polygonCount > 20) return 'critical';
+                    if (polygonCount >= 11 && polygonCount <= 20) return 'high';
+                    if (polygonCount >= 5 && polygonCount <= 10) return 'moderate';
+                    if (polygonCount >= 1 && polygonCount <= 4) return 'low';
+                    return 'baseline';
+                }
+
+                function categorize100m(polygonCount) {
+                    if (polygonCount > 75) return 'critical';
+                    if (polygonCount >= 40 && polygonCount <= 75) return 'high';
+                    if (polygonCount >= 20 && polygonCount <= 40) return 'moderate';
+                    if (polygonCount >= 5 && polygonCount <= 20) return 'low';
+                    return 'baseline';
+                }
+
+                // ==========================================
+                // IDENTIFY BUFFER LAYERS
+                // ==========================================
+                function identifyBufferLayers() {
+                    console.log('🔍 Identifying buffer layers...');
+                    
+                    layerGroups.forEach((layer, index) => {
+                        let layerName = '';
+                        if (layer.getProperties) {
+                            const props = layer.getProperties();
+                            layerName = props.name || props.title || props.id || '';
+                        }
+                        
+                        const knownNames = [
+                            'Lilongwe_1', 'Joined_100m_2', 'joined30m_3', 
+                            'Joined_100mflaggingvirtual_4', 'download_5', 
+                            'mzuzu_6', 'export_7', 'facilities_8', 
+                            'mwi_admin3_nso_9', 'mwi_admin2_em_10'
+                        ];
+                        if (!layerName && index < knownNames.length) {
+                            layerName = knownNames[index];
+                        }
+
+                        // "flagging" must be checked first: Joined_100mflaggingvirtual_4
+                        // itself contains the substring "100m", so if the 100m check ran
+                        // first it would misidentify the flagging layer as the 100m buffer
+                        // layer and silently overwrite the real Joined_100m_2 assignment -
+                        // which is exactly what was happening before this fix.
+                        const isFlagging = layerName.includes('flagging') || layerName.includes('Flagging');
+                        const is30m = !isFlagging && (layerName.includes('30m') || layerName.includes('joined30m'));
+                        const is100m = !isFlagging && (layerName.includes('100m') || layerName.includes('Joined_100m'));
+
+                        if (isFlagging) {
+                            bufferLayers['flagging'] = layer;
+                            originalVisibility['flagging'] = layer.getVisible();
+                            originalStyles['flagging'] = layer.getStyle ? layer.getStyle() : null;
+                            console.log('✅ Found Flagging layer:', layerName);
+                        } else if (is30m) {
+                            bufferLayers['30m'] = layer;
+                            originalVisibility['30m'] = layer.getVisible();
+                            originalStyles['30m'] = layer.getStyle ? layer.getStyle() : null;
+                            console.log('✅ Found 30m buffer layer:', layerName);
+                        } else if (is100m) {
+                            bufferLayers['100m'] = layer;
+                            originalVisibility['100m'] = layer.getVisible();
+                            originalStyles['100m'] = layer.getStyle ? layer.getStyle() : null;
+                            console.log('✅ Found 100m buffer layer:', layerName);
+                        }
+                    });
+                    
+                    console.log('📊 Buffer layers identified:', {
+                        '30m': bufferLayers['30m'] ? 'Yes' : 'No',
+                        '100m': bufferLayers['100m'] ? 'Yes' : 'No',
+                        'flagging': bufferLayers['flagging'] ? 'Yes' : 'No'
+                    });
+                }
+
+                // ==========================================
+                // COUNT BUFFER FEATURES WITH CATEGORIZATION
+                // ==========================================
+                function countBufferFeatures() {
+                    const counts = {
+                        flagging: 0,
+                        '30m': { total: 0, critical: 0, high: 0, moderate: 0, low: 0 },
+                        '100m': { total: 0, critical: 0, high: 0, moderate: 0, low: 0 }
+                    };
+
+                    Object.keys(bufferLayers).forEach(layerType => {
+                        const layer = bufferLayers[layerType];
+                        if (!layer) return;
+
+                        const source = layer.getSource ? layer.getSource() : null;
+                        if (!source) return;
+
+                        let features = [];
+                        try {
+                            if (source.getFeatures) {
+                                features = source.getFeatures();
+                            }
+                        } catch(e) { return; }
+
+                        if (!features || features.length === 0) return;
+
+                        if (layerType === 'flagging') {
+                            counts.flagging = features.length;
+                            return;
+                        }
+
+                        // Each feature is looped once (no indexOf lookups) - that stays
+                        // true even without the old array-position fallback below.
+                        features.forEach(feature => {
+                            // OBJECTID_c is the count of polygons that overlap this
+                            // buffer feature - that count is what determines its
+                            // severity category. Generic ID fields like OBJECTID or
+                            // objectid are just row identifiers, not counts, so they
+                            // must never be used as a stand-in for OBJECTID_c.
+                            const props = feature.getProperties ? feature.getProperties() : {};
+                            let raw = props.OBJECTID_c;
+                            if (raw === undefined) raw = props.OBJECTID_C;
+                            if (raw === undefined) raw = props.objectid_c;
+
+                            let polygonCount = null;
+                            if (raw !== undefined && raw !== null && raw !== '') {
+                                const parsed = parseInt(raw, 10);
+                                if (!isNaN(parsed)) polygonCount = parsed;
+                            }
+
+                            // No OBJECTID_c means no polygons were counted for this
+                            // feature - that's a real zero, not missing data to guess
+                            // at from where the feature happens to sit in the array.
+                            if (polygonCount === null) {
+                                polygonCount = 0;
+                            }
+
+                            if (layerType === '30m') {
+                                const category = categorize30m(polygonCount);
+                                featureCategories['30m'].set(feature, category);
+                                counts['30m'].total++;
+                                if (category === 'critical') counts['30m'].critical++;
+                                else if (category === 'high') counts['30m'].high++;
+                                else if (category === 'moderate') counts['30m'].moderate++;
+                                else if (category === 'low') counts['30m'].low++;
+                            } else if (layerType === '100m') {
+                                const category = categorize100m(polygonCount);
+                                featureCategories['100m'].set(feature, category);
+                                counts['100m'].total++;
+                                if (category === 'critical') counts['100m'].critical++;
+                                else if (category === 'high') counts['100m'].high++;
+                                else if (category === 'moderate') counts['100m'].moderate++;
+                                else if (category === 'low') counts['100m'].low++;
+                            }
+                        });
+                    });
+
+                    return counts;
+                }
+
+                // ==========================================
+                // APPLY MAP FILTER - CHECKBOX BASED
+                // ==========================================                // Builds a per-feature style function for a 30m/100m buffer layer that
+                // only renders features whose category checkbox is active, instead of
+                // showing/hiding the entire layer regardless of which category boxes
+                // are checked.
+                // Explicit per-category styles for the buffer polygons, colored to
+                // match the sidebar legend. We build these ourselves rather than
+                // reusing the layer's original per-feature style function - that
+                // original style is generated by qgis2web from its own rule set,
+                // and for several categories (100m moderate/high/low in particular)
+                // it was returning no drawable style at all, which is why checking
+                // those boxes appeared to do nothing on the map even though the
+                // feature counts were correct.
+                function cssVar(name, fallback) {
+                    try {
+                        const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+                        return val || fallback;
+                    } catch (e) {
+                        return fallback;
+                    }
+                }
+
+                function hexToRgba(hex, alpha) {
+                    const clean = hex.replace('#', '');
+                    const r = parseInt(clean.substring(0, 2), 16);
+                    const g = parseInt(clean.substring(2, 4), 16);
+                    const b = parseInt(clean.substring(4, 6), 16);
+                    if (isNaN(r) || isNaN(g) || isNaN(b)) return hex;
+                    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+                }
+
+                const categoryColors = {
+                    '30m': {
+                        critical: cssVar('--buffer-30m-critical', '#e74c3c'),
+                        high: cssVar('--buffer-30m-high', '#e67e22'),
+                        moderate: cssVar('--buffer-30m-moderate', '#f1c40f'),
+                        low: cssVar('--buffer-30m-low', '#2ecc71')
+                    },
+                    '100m': {
+                        critical: cssVar('--buffer-100m-critical', '#e74c3c'),
+                        high: cssVar('--buffer-100m-high', '#e67e22'),
+                        moderate: cssVar('--buffer-100m-moderate', '#f1c40f'),
+                        low: cssVar('--buffer-100m-low', '#2ecc71')
+                    }
+                };
+
+                // Built lazily and cached, one ol.style.Style per layerType+category.
+                const categoryStyleCache = { '30m': {}, '100m': {} };
+
+                function getCategoryStyle(layerType, category) {
+                    const cache = categoryStyleCache[layerType];
+                    if (cache[category]) return cache[category];
+
+                    const color = (categoryColors[layerType] && categoryColors[layerType][category]) || '#999999';
+                    const style = new ol.style.Style({
+                        fill: new ol.style.Fill({ color: hexToRgba(color, 0.35) }),
+                        stroke: new ol.style.Stroke({ color: color, width: 2 })
+                    });
+                    cache[category] = style;
+                    return style;
+                }
+
+                function buildCategoryFilterStyle(layerType, allowedCategories) {
+                    return function(feature) {
+                        const category = featureCategories[layerType].get(feature) || 'baseline';
+                        if (allowedCategories.has(category)) {
+                            return getCategoryStyle(layerType, category);
+                        }
+                        return null; // hide this individual feature, not the whole layer
+                    };
+                }
+
+                function applyMapFilter() {
+                    console.log('🎯 Applying map filter:', [...activeFilters]);
+
+                    const filterIndicator = document.getElementById('filterIndicator');
+                    const filterDisplayText = document.getElementById('filterDisplayText');
+
+                    const allFilterKeys = Object.keys(filterDisplayNames);
+                    const isEverythingChecked = allFilterKeys.every(key => activeFilters.has(key));
+
+                    if (isEverythingChecked) {
+                        // Every category is checked: restore every layer to its original
+                        // visibility AND its original (unfiltered) style - the default view.
+                        Object.keys(bufferLayers).forEach(layerType => {
+                            const layer = bufferLayers[layerType];
+                            if (!layer) return;
+                            const origVis = originalVisibility[layerType];
+                            layer.setVisible(origVis !== undefined ? origVis : true);
+                            if (layer.setStyle && originalStyles[layerType] !== undefined) {
+                                layer.setStyle(originalStyles[layerType]);
+                            }
+                        });
+                        filterIndicator.classList.remove('visible');
+                        filterDisplayText.textContent = 'All';
+                        return;
+                    }
+
+                    if (activeFilters.size === 0) {
+                        // Everything is unchecked: hide every buffer layer entirely.
+                        Object.keys(bufferLayers).forEach(layerType => {
+                            const layer = bufferLayers[layerType];
+                            if (layer) layer.setVisible(false);
+                        });
+                        filterDisplayText.textContent = 'None';
+                        filterIndicator.classList.add('visible');
+                        return;
+                    }
+
+                    // Update display text
+                    const displayNames = [];
+                    activeFilters.forEach(filter => {
+                        if (filterDisplayNames[filter]) {
+                            displayNames.push(filterDisplayNames[filter]);
+                        }
+                    });
+                    filterDisplayText.textContent = displayNames.join(', ') || 'Selected';
+                    filterIndicator.classList.add('visible');
+
+                    // ---- Flagging layer: no categories, just on/off ----
+                    if (bufferLayers.flagging) {
+                        bufferLayers.flagging.setVisible(activeFilters.has('flagging'));
+                    }
+
+                    // ---- 30m / 100m buffer layers: filter individual features ----
+                    ['30m', '100m'].forEach(layerType => {
+                        const layer = bufferLayers[layerType];
+                        if (!layer) return;
+
+                        const allowedCategories = new Set();
+                        activeFilters.forEach(filter => {
+                            if (filter.indexOf(layerType + '-') === 0) {
+                                allowedCategories.add(filter.slice((layerType + '-').length));
+                            }
+                        });
+
+                        if (allowedCategories.size === 0) {
+                            // None of this layer's category boxes are checked - hide the
+                            // whole layer, same as before.
+                            layer.setVisible(false);
+                            return;
+                        }
+
+                        layer.setVisible(true);
+                        if (layer.setStyle) {
+                            layer.setStyle(buildCategoryFilterStyle(layerType, allowedCategories));
+                        }
+                    });
+                }
+
+                // ==========================================
+                // UPDATE UI
+                // ==========================================
+                // Raw counts (bufferData) always reflect every feature that exists,
+                // regardless of what's checked - used for the small badges next to
+                // each checkbox so the user can see how many features a category has.
+                // Display counts zero out anything whose checkbox is unchecked, so the
+                // cards match what's actually left visible on the map.
+                function getDisplayCounts() {
+                    const raw = bufferData;
+                    const display = {
+                        flagging: activeFilters.has('flagging') ? raw.flagging : 0,
+                        '30m': { total: 0, critical: 0, high: 0, moderate: 0, low: 0 },
+                        '100m': { total: 0, critical: 0, high: 0, moderate: 0, low: 0 }
+                    };
+
+                    ['critical', 'high', 'moderate', 'low'].forEach(category => {
+                        if (activeFilters.has('30m-' + category)) {
+                            display['30m'][category] = raw['30m'][category];
+                            display['30m'].total += raw['30m'][category];
+                        }
+                        if (activeFilters.has('100m-' + category)) {
+                            display['100m'][category] = raw['100m'][category];
+                            display['100m'].total += raw['100m'][category];
+                        }
+                    });
+
+                    return display;
+                }
+
+                function updateUI() {
+                    bufferData = countBufferFeatures();
+
+                    const raw = bufferData;
+                    const data = getDisplayCounts();
+
+                    // Update summary stats (reflect what's currently on the map)
+                    // document.getElementById('sumFlagging').textContent = data.flagging;
+                    // document.getElementById('sum30m').textContent = data['30m'].total;
+                    // document.getElementById('sum100m').textContent = data['100m'].total;
+
+                    // Update featured card
+                    document.getElementById('flaggingCount').innerHTML = 
+                        data.flagging + ' <span class="suffix">features</span>';
+
+                    // Update 30m buffer cards
+                    document.getElementById('card-30m-critical').textContent = data['30m'].critical;
+                    document.getElementById('card-30m-high').textContent = data['30m'].high;
+                    document.getElementById('card-30m-moderate').textContent = data['30m'].moderate;
+                    document.getElementById('card-30m-low').textContent = data['30m'].low;
+
+                    // Update 100m buffer cards
+                    document.getElementById('card-100m-critical').textContent = data['100m'].critical;
+                    document.getElementById('card-100m-high').textContent = data['100m'].high;
+                    document.getElementById('card-100m-moderate').textContent = data['100m'].moderate;
+                    document.getElementById('card-100m-low').textContent = data['100m'].low;
+
+                    // Update filter badges - these always show the full count available
+                    // in each category (not affected by checked state) so the user knows
+                    // what checking a box would bring back.
+                    document.getElementById('filter-flagging').textContent = raw.flagging;
+                    document.getElementById('filter-30m-critical').textContent = raw['30m'].critical;
+                    document.getElementById('filter-30m-high').textContent = raw['30m'].high;
+                    document.getElementById('filter-30m-moderate').textContent = raw['30m'].moderate;
+                    document.getElementById('filter-30m-low').textContent = raw['30m'].low;
+                    document.getElementById('filter-100m-critical').textContent = raw['100m'].critical;
+                    document.getElementById('filter-100m-high').textContent = raw['100m'].high;
+                    document.getElementById('filter-100m-moderate').textContent = raw['100m'].moderate;
+                    document.getElementById('filter-100m-low').textContent = raw['100m'].low;
+
+                    // Update totals (reflect what's currently on the map)
+                    document.getElementById('total30m').textContent = data['30m'].total + ' total';
+                    document.getElementById('total100m').textContent = data['100m'].total + ' total';
+
+                    // Total features currently visible on the map
+                    const total = data.flagging + data['30m'].total + data['100m'].total;
+                    document.getElementById('totalFeatures').textContent = total.toLocaleString();
+
+                    // Last updated
+                    const now = new Date();
+                    document.getElementById('lastUpdated').textContent = 
+                        now.toLocaleTimeString('en-US', { hour12: false });
+
+                    // Apply map filter
+                    applyMapFilter();
+
+                    console.log('✅ UI updated');
+                }
+
+                // ==========================================
+                // CHECKBOX EVENT HANDLERS
+                // ==========================================
+                document.querySelectorAll('.filter-checkbox input[type="checkbox"]').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        const parent = this.closest('.filter-checkbox');
+                        const filterKey = parent.dataset.filter;
+                        
+                        if (this.checked) {
+                            activeFilters.add(filterKey);
+                            parent.classList.add('active');
+                        } else {
+                            activeFilters.delete(filterKey);
+                            parent.classList.remove('active');
+                        }
+                        
+                        updateUI();
+                    });
+                });
+
+                // ==========================================
+                // CLEAR FILTERS
+                // ==========================================
+                function clearAllFilters() {
+                    // "Clear filters" resets back to the default, unfiltered view -
+                    // every category checked and every buffer showing on the map.
+                    activeFilters.clear();
+                    checkAllFilterBoxes();
+                    updateUI();
+                }
+
+                document.getElementById('clearFilters').addEventListener('click', clearAllFilters);
+                document.getElementById('clearIndicatorBtn').addEventListener('click', clearAllFilters);
+
+                // ==========================================
+                // STATUS BAR UPDATES
+                // ==========================================
+                function updateStatusBar() {
+                    const now = new Date();
+                    document.getElementById('statusTime').textContent = 
+                        now.toLocaleTimeString('en-US', { hour12: false });
+
+                    const zoom = view.getZoom();
+                    document.getElementById('statusZoom').textContent = zoom ? Math.round(zoom) : '--';
+
+                    const res = view.getResolution();
+                    if (res) {
+                        const scale = Math.round(res * 111319.9 * 1000);
+                        document.getElementById('statusScale').textContent = '1:' + scale.toLocaleString();
+                    }
+                }
+
+                // ==========================================
+                // CURSOR TRACKING
+                // ==========================================
+                map.on('pointermove', function(evt) {
+                    const coord = evt.coordinate;
+                    if (coord) {
+                        const lonLat = ol.proj.toLonLat(coord);
+                        document.getElementById('statusCursor').textContent = 
+                            lonLat[1].toFixed(4) + '°, ' + lonLat[0].toFixed(4) + '°';
+                    }
+                });
+
+                // ==========================================
+                // VIEW EVENT LISTENERS
+                // ==========================================
+                view.on('change:resolution', updateStatusBar);
+                view.on('change:center', updateStatusBar);
+
+                // ==========================================
+                // MAP CONTROLS
+                // ==========================================
+                document.getElementById('zoomIn').addEventListener('click', function() {
+                    view.setZoom((view.getZoom() || 0) + 1);
+                });
+
+                document.getElementById('zoomOut').addEventListener('click', function() {
+                    view.setZoom((view.getZoom() || 0) - 1);
+                });
+
+                document.getElementById('resetView').addEventListener('click', function() {
+                    view.setZoom(7);
+                    view.setCenter(ol.proj.fromLonLat([34.0, -13.5]));
+                });
+
+                document.getElementById('fullscreen').addEventListener('click', function() {
+                    const el = document.querySelector('.dashboard-sidebar');
+                    if (!document.fullscreenElement) {
+                        el.requestFullscreen?.();
+                    } else {
+                        document.exitFullscreen?.();
+                    }
+                });
+
+                document.getElementById('locate').addEventListener('click', function() {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(function(pos) {
+                            const center = ol.proj.fromLonLat([pos.coords.longitude, pos.coords.latitude]);
+                            view.setCenter(center);
+                            view.setZoom(14);
+                        }, function() {
+                            alert('Unable to get your location.');
+                        });
+                    } else {
+                        alert('Geolocation not supported.');
+                    }
+                });
+
+                document.getElementById('layerToggle').addEventListener('click', function() {
+                    const switcher = document.querySelector('.layer-switcher');
+                    if (switcher) {
+                        const btn = switcher.querySelector('button');
+                        if (btn) btn.click();
+                    }
+                });
+
+                // ==========================================
+                // POPUP
+                // ==========================================
+                document.getElementById('popup-closer').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.getElementById('popup').style.display = 'none';
+                });
+
+                // ==========================================
+                // SEARCH
+                // ==========================================
+                const searchArea = document.getElementById('sidebarSearch');
+                const originalSearch = document.querySelector('.search-container');
+                if (originalSearch && searchArea) {
+                    const input = originalSearch.querySelector('.gcd-gl');
+                    if (input) {
+                        searchArea.appendChild(input.cloneNode(true));
+                        originalSearch.remove();
+                    }
+                }
+
+                setTimeout(function() {
+                    const searchInput = document.querySelector('.gcd-gl-input');
+                    if (searchInput) {
+                        searchInput.placeholder = '🔍 Search location...';
+                    }
+                }, 100);
+
+                // ==========================================
+                // SIDEBAR TOGGLE (Mobile)
+                // ==========================================
+                const sidebar = document.getElementById('sidebar');
+                const sidebarToggle = document.getElementById('sidebarToggle');
+                let sidebarOpen = true;
+
+                sidebarToggle.addEventListener('click', function() {
+                    sidebarOpen = !sidebarOpen;
+                    sidebar.classList.toggle('collapsed', !sidebarOpen);
+                    this.innerHTML = sidebarOpen ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+                });
+
+                // ==========================================
+                // INITIALIZATION
+                // ==========================================
+                // All categories start checked, so the dashboard opens showing
+                // everything - unchecking a box is what removes that category's
+                // buffers from the map.
+                function checkAllFilterBoxes() {
+                    document.querySelectorAll('.filter-checkbox').forEach(el => {
+                        const filterKey = el.dataset.filter;
+                        if (!filterKey) return;
+                        activeFilters.add(filterKey);
+                        el.classList.add('active');
+                        const input = el.querySelector('input[type="checkbox"]');
+                        if (input) input.checked = true;
+                    });
+                }
+
+                function initialize() {
+                    identifyBufferLayers();
+                    checkAllFilterBoxes();
+                    updateUI();
+                    updateStatusBar();
+                    
+                    console.log('✅ Buffer Dashboard with Checkbox Filters ready!');
+                    console.log('📊 Uncheck any category to remove it from the map');
+                }
+
+                setTimeout(initialize, 500);
+                setTimeout(function() {
+                    updateUI();
+                    updateStatusBar();
+                }, 1500);
+                setTimeout(function() {
+                    updateUI();
+                    updateStatusBar();
+                }, 3000);
+
+                setInterval(updateUI, 30000);
+                setInterval(updateStatusBar, 10000);
+            }
+        });
+    </script>
+</body>
+</html>
