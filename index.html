@@ -634,12 +634,12 @@
               <div class="kpi-sub">30m critical + 100m critical (visible)</div>
             </div>
 
-            <div class="kpi-card featured immediate">
+            <!-- <div class="kpi-card featured immediate">
               <div class="kpi-label"> 15m Automatic Override
  Vulnerability </div>
               <div class="kpi-value" id="kpiImmediate">0</div>
               <div class="kpi-sub"> Water Points </div>
-            </div>
+            </div> -->
 
             <div class="kpi-card">
               <div class="kpi-label">30m Vulnerability Tiers</div>
@@ -843,7 +843,7 @@
   <script src="data/30m_polygons_simplified_10.js"></script>
   <script src="data/outer_ring_simplified_11.js"></script>
   <script src="data/download_12.js"></script>
-  <script src="data/15m_critical_13.js"></script>
+  <!-- <script src="data/15m_critical_13.js"></script> -->
   <script src="data/MAFD_14.js"></script>
   <script>
     // === MAP INIT ===
@@ -1212,43 +1212,106 @@
     map.createPane('pane_30m_polygons_simplified_10');
     map.getPane('pane_30m_polygons_simplified_10').style.zIndex = 414;
     map.getPane('pane_30m_polygons_simplified_10').style['mix-blend-mode'] = 'normal';
-    var layer_30m_polygons_simplified_10 = new L.geoJson(json_30m_polygons_simplified_10, {
-      attribution: '',
-      interactive: false,
-      dataVar: 'json_30m_polygons_simplified_10',
-      layerName: 'layer_30m_polygons_simplified_10',
-      pane: 'pane_30m_polygons_simplified_10',
-      onEachFeature: pop_30m_polygons_simplified_10,
-      style: style_30m_polygons_simplified_10_0,
-    });
-    bounds_group.addLayer(layer_30m_polygons_simplified_10);
-    map.addLayer(layer_30m_polygons_simplified_10);
 
-    // === OUTER RING ===
-    function pop_outer_ring_simplified_11(feature, layer) {
-      var popupContent = '<table><tr><td colspan="2">' + (feature.properties['GPS Locati'] !== null ? autolinker.link(String(feature.properties['GPS Locati']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Loca_1'] !== null ? autolinker.link(String(feature.properties['GPS Loca_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['Unique ID'] !== null ? autolinker.link(String(feature.properties['Unique ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['crit30_100'] !== null ? autolinker.link(String(feature.properties['crit30_100']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr></table>';
-      var content = removeEmptyRowsFromPopupContent(popupContent, feature);
-      layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
-      layer.bindPopup(content, { maxHeight: 400 });
+    var district30mNames = ["Balaka", "Blantyre", "Blantyre City", "Chikwawa", "Chiradzulu", "Chitipa", "Dedza", "Dowa", "Karonga", "Kasungu", "Lilongwe", "Lilongwe City", "Machinga", "Mangochi", "Mchinji", "Mulanje", "Mwanza", "Mzimba", "Mzuzu City", "Neno", "Nkhatabay", "Nkhotakota", "Nsanje", "Ntcheu", "Ntchisi", "Phalombe", "Rumphi", "Salima", "Thyolo", "Unknown District", "Zomba", "Zomba City"];
+    var district30mLayers = {};
+    var district30mLoaded = {};
+    var district30mLoading = {};
+    var active30mDistrict = null;
+
+    function districtFileName(name) { return name.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, ''); }
+
+    function set30mStatus(message, busy) {
+      var el = document.getElementById('dynamic30mStatus');
+      if (!el) { el = document.createElement('div'); el.id = 'dynamic30mStatus'; el.className = 'dynamic-layer-status'; document.body.appendChild(el); }
+      el.textContent = message || ''; el.classList.toggle('show', !!message); el.classList.toggle('busy', !!busy);
     }
-    function style_outer_ring_simplified_11_0(feature) {
-      var v = feature.properties['crit30_100'];
-      if (v >= 0 && v <= 0.99) return { pane: 'pane_outer_ring_simplified_11', opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1.0, fill: true, fillOpacity: 1, fillColor: 'rgba(114,155,111,1.0)', interactive: false };
-      if (v >= 1 && v <= 10) return { pane: 'pane_outer_ring_simplified_11', opacity: 1, color: 'rgba(255,244,0,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 8.0, fill: true, fillOpacity: 1, fillColor: 'rgba(255,244,0,0.0)', interactive: false };
-    }
-    map.createPane('pane_outer_ring_simplified_11');
-    map.getPane('pane_outer_ring_simplified_11').style.zIndex = 415;
-    map.getPane('pane_outer_ring_simplified_11').style['mix-blend-mode'] = 'normal';
-    var layer_outer_ring_simplified_11 = new L.geoJson(json_outer_ring_simplified_11, {
-      attribution: '',
-      interactive: false,
-      dataVar: 'json_outer_ring_simplified_11',
-      layerName: 'layer_outer_ring_simplified_11',
-      pane: 'pane_outer_ring_simplified_11',
-      onEachFeature: pop_outer_ring_simplified_11,
-      style: style_outer_ring_simplified_11_0,
-    });
-    bounds_group.addLayer(layer_outer_ring_simplified_11);
+
+  function clear30mDistrict(name) {
+        var group = district30mLayers[name];
+        if (!group) return;
+        if (map.hasLayer(group)) map.removeLayer(group);
+        group.clearLayers();
+        district30mLoaded[name] = false;
+      }
+
+      function unloadOther30mDistricts(exceptName) {
+        Object.keys(district30mLayers).forEach(function(name) { if (name !== exceptName) clear30mDistrict(name); });
+      }
+
+      function load30mDistrict(name) {
+        var group = district30mLayers[name];
+        if (!group || district30mLoading[name]) return;
+        unloadOther30mDistricts(name);
+        active30mDistrict = name;
+
+        if (district30mLoaded[name]) {
+          map.addLayer(group);
+          set30mStatus(name + ' 30m layer loaded', false);
+          setTimeout(function(){ set30mStatus('', false); }, 1200);
+          return;
+        }
+
+        district30mLoading[name] = true;
+        set30mStatus('Loading ' + name + ' 30m vulnerability data…', true);
+        var safe = districtFileName(name);
+        var variableName = 'json_30m_' + safe;
+        var script = document.createElement('script');
+        script.src = 'data/30m_polygons/' + safe + '_30m.js';
+        script.async = true;
+
+        script.onload = function() {
+          try {
+            var data = window[variableName];
+            if (!data || !Array.isArray(data.features)) throw new Error('Dataset variable not found: ' + variableName);
+            var layer = L.geoJSON(data, { attribution: '', interactive: false, pane: 'pane_30m_polygons_simplified_10', onEachFeature: pop_30m_polygons_simplified_10, style: style_30m_polygons_simplified_10_0 });
+            group.clearLayers(); group.addLayer(layer);
+            district30mLoaded[name] = true; district30mLoading[name] = false;
+            var count = data.features.length;
+            try { delete window[variableName]; } catch (e) { window[variableName] = null; }
+            script.remove();
+            if (active30mDistrict === name) map.addLayer(group);
+            set30mStatus(name + ' loaded (' + count.toLocaleString() + ' polygons)', false);
+            setTimeout(function(){ set30mStatus('', false); }, 1800);
+          } catch (err) {
+            district30mLoading[name] = false; script.remove(); console.error(err); set30mStatus('Could not load ' + name + ': ' + err.message, false);
+            if (map.hasLayer(group)) map.removeLayer(group);
+          }
+        };
+        script.onerror = function() {
+          district30mLoading[name] = false; script.remove(); console.error('Unable to load district 30m data:', name); set30mStatus('Could not load ' + name + ' 30m data', false);
+          if (map.hasLayer(group)) map.removeLayer(group);
+        };
+        document.head.appendChild(script);
+      }
+
+      district30mNames.forEach(function(name) { district30mLayers[name] = L.layerGroup(); district30mLoaded[name] = false; district30mLoading[name] = false; });
+
+      // === OUTER RING ===
+      function pop_outer_ring_simplified_11(feature, layer) {
+        var popupContent = '<table><tr><td colspan="2">' + (feature.properties['GPS Locati'] !== null ? autolinker.link(String(feature.properties['GPS Locati']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Loca_1'] !== null ? autolinker.link(String(feature.properties['GPS Loca_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['Unique ID'] !== null ? autolinker.link(String(feature.properties['Unique ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['crit30_100'] !== null ? autolinker.link(String(feature.properties['crit30_100']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr></table>';
+        var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+        layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
+        layer.bindPopup(content, { maxHeight: 400 });
+      }
+      function style_outer_ring_simplified_11_0(feature) {
+        var v = feature.properties['crit30_100'];
+        if (v >= 0 && v <= 0.99) return { pane: 'pane_outer_ring_simplified_11', opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1.0, fill: true, fillOpacity: 1, fillColor: 'rgba(114,155,111,1.0)', interactive: false };
+        if (v >= 1 && v <= 10) return { pane: 'pane_outer_ring_simplified_11', opacity: 1, color: 'rgba(255,244,0,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 8.0, fill: true, fillOpacity: 1, fillColor: 'rgba(255,244,0,0.0)', interactive: false };
+      }
+      map.createPane('pane_outer_ring_simplified_11');
+      map.getPane('pane_outer_ring_simplified_11').style.zIndex = 415;
+      map.getPane('pane_outer_ring_simplified_11').style['mix-blend-mode'] = 'normal';
+      var layer_outer_ring_simplified_11 = new L.geoJson(json_outer_ring_simplified_11, {
+        attribution: '',
+        interactive: false,
+        dataVar: 'json_outer_ring_simplified_11',
+        layerName: 'layer_outer_ring_simplified_11',
+        pane: 'pane_outer_ring_simplified_11',
+        onEachFeature: pop_outer_ring_simplified_11,
+        style: style_outer_ring_simplified_11_0,
+      });
+      bounds_group.addLayer(layer_outer_ring_simplified_11);
 
     // === DOWNLOAD (WATER POINTS) ===
     function pop_download_12(feature, layer) {
@@ -1311,33 +1374,33 @@
     map.addLayer(layer_download_12);
 
     // === 15M CRITICAL ===
-    function pop_15m_critical_13(feature, layer) {
-      var popupContent = '<table><tr><td colspan="2">' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Locati'] !== null ? autolinker.link(String(feature.properties['GPS Locati']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Loca_1'] !== null ? autolinker.link(String(feature.properties['GPS Loca_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><th scope="row">c_15m_p</th><td class="visible-with-data" id="c_15m_p">' + (feature.properties['c_15m_p'] !== null ? autolinker.link(String(feature.properties['c_15m_p']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr></table>';
-      var content = removeEmptyRowsFromPopupContent(popupContent, feature);
-      layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
-      layer.bindPopup(content, { maxHeight: 400 });
-    }
-    function style_15m_critical_13_0(feature) {
-      var v = feature.properties['c_15m_p'];
-      if (v >= 0 && v <= 0.99) return { pane: 'pane_15m_critical_13', radius: 4.0, opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,255,255,0.0)', interactive: false };
-      if (v >= 1) return { pane: 'pane_15m_critical_13', radius: 4.0, opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,24,0,1.0)', interactive: false };
-    }
-    map.createPane('pane_15m_critical_13');
-    map.getPane('pane_15m_critical_13').style.zIndex = 417;
-    map.getPane('pane_15m_critical_13').style['mix-blend-mode'] = 'normal';
-    var layer_15m_critical_13 = new L.geoJson(json_15m_critical_13, {
-      attribution: '',
-      interactive: false,
-      dataVar: 'json_15m_critical_13',
-      layerName: 'layer_15m_critical_13',
-      pane: 'pane_15m_critical_13',
-      onEachFeature: pop_15m_critical_13,
-      pointToLayer: function(feature, latlng) {
-        return L.circleMarker(latlng, style_15m_critical_13_0(feature));
-      },
-    });
-    bounds_group.addLayer(layer_15m_critical_13);
-    map.addLayer(layer_15m_critical_13);
+    // function pop_15m_critical_13(feature, layer) {
+    //   var popupContent = '<table><tr><td colspan="2">' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Locati'] !== null ? autolinker.link(String(feature.properties['GPS Locati']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Loca_1'] !== null ? autolinker.link(String(feature.properties['GPS Loca_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><th scope="row">c_15m_p</th><td class="visible-with-data" id="c_15m_p">' + (feature.properties['c_15m_p'] !== null ? autolinker.link(String(feature.properties['c_15m_p']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr></table>';
+    //   var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+    //   layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
+    //   layer.bindPopup(content, { maxHeight: 400 });
+    // }
+    // function style_15m_critical_13_0(feature) {
+    //   var v = feature.properties['c_15m_p'];
+    //   if (v >= 0 && v <= 0.99) return { pane: 'pane_15m_critical_13', radius: 4.0, opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,255,255,0.0)', interactive: false };
+    //   if (v >= 1) return { pane: 'pane_15m_critical_13', radius: 4.0, opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,24,0,1.0)', interactive: false };
+    // }
+    // map.createPane('pane_15m_critical_13');
+    // map.getPane('pane_15m_critical_13').style.zIndex = 417;
+    // map.getPane('pane_15m_critical_13').style['mix-blend-mode'] = 'normal';
+    // var layer_15m_critical_13 = new L.geoJson(json_15m_critical_13, {
+    //   attribution: '',
+    //   interactive: false,
+    //   dataVar: 'json_15m_critical_13',
+    //   layerName: 'layer_15m_critical_13',
+    //   pane: 'pane_15m_critical_13',
+    //   onEachFeature: pop_15m_critical_13,
+    //   pointToLayer: function(feature, latlng) {
+    //     return L.circleMarker(latlng, style_15m_critical_13_0(feature));
+    //   },
+    // });
+    // bounds_group.addLayer(layer_15m_critical_13);
+    // map.addLayer(layer_15m_critical_13);
 
     // === MAFD ===
     function pop_MAFD_14(feature, layer) {
@@ -1367,10 +1430,44 @@
     // === LAYER TREE (raster labels carry data attrs for slider injection) ===
     var overlaysTree = [
       { label: '<img src="legend/MAFD_14.png" /> Stractural Faults', layer: layer_MAFD_14 },
-      { label: '15m Automatic Override<br /><table><tr><td style="text-align: center;"><img src="legend/15m_critical_13_LowVulnerability0.png" /></td><td>Low Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/15m_critical_13_CriticalVulnerability1.png" /></td><td>Critical Vulnerability</td></tr></table>', layer: layer_15m_critical_13 },
+    //  { label: '15m Automatic Override<br /><table><tr><td style="text-align: center;"><img src="legend/15m_critical_13_LowVulnerability0.png" /></td><td>Low Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/15m_critical_13_CriticalVulnerability1.png" /></td><td>Critical Vulnerability</td></tr></table>', layer: layer_15m_critical_13 },
       { label: 'Water Point <br /><table><tr><td style="text-align: center;"><img src="legend/download_12_LowVulnerability0.png" /></td><td>Low Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/download_12_ModerateVulnerability1.png" /></td><td>Moderate Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/download_12_HighVulnerability2.png" /></td><td>High Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/download_12_CriticalVulnerability3.png" /></td><td>Critical Vulnerability</td></tr></table>', layer: layer_download_12 },
     //   { label: 'outer_ring_simplified <br /><table><tr><td style="text-align: center;"><img src="legend/outer_ring_simplified_11_00000.png" /></td><td>0.0 - 0.0</td></tr><tr><td style="text-align: center;"><img src="legend/outer_ring_simplified_11_00001.png" /></td><td>0.0 - 0.0</td></tr></table>', layer: layer_outer_ring_simplified_11 },
-      { label: '30m Vulnerability <br /><table><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00000.png" /></td><td> Baseline </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00001.png" /></td><td> Low </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00002.png" /></td><td> Medium </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00003.png" /></td><td> High </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00004.png" /></td><td> Critical </td></tr></table>', layer: layer_30m_polygons_simplified_10 },
+      // { label: '30m Vulnerability <br /><table><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00000.png" /></td><td> Baseline </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00001.png" /></td><td> Low </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00002.png" /></td><td> Medium </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00003.png" /></td><td> High </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00004.png" /></td><td> Critical </td></tr></table>', layer: layer_30m_polygons_simplified_10 },
+      { label: '<span class=\"layer-folder-title\">30m Vulnerability</span><br /><table><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00000.png\" /></td><td> Baseline </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00001.png\" /></td><td> Low </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00002.png\" /></td><td> Medium </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00003.png\" /></td><td> High </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00004.png\" /></td><td> Critical </td></tr></table>', children: [
+        { label: "Balaka", layer: district30mLayers["Balaka"] },
+        { label: "Blantyre", layer: district30mLayers["Blantyre"] },
+        { label: "Blantyre City", layer: district30mLayers["Blantyre City"] },
+        { label: "Chikwawa", layer: district100mLayers["Chikwawa"] },
+        { label: "Chiradzulu", layer: district30mLayers["Chiradzulu"] },
+        { label: "Chitipa", layer: district30mLayers["Chitipa"] },
+        { label: "Dedza", layer: district30mLayers["Dedza"] },
+        { label: "Dowa", layer: district30mLayers["Dowa"] },
+        { label: "Karonga", layer: district30mLayers["Karonga"] },
+        { label: "Kasungu", layer: district30mLayers["Kasungu"] },
+        { label: "Lilongwe", layer: district30mLayers["Lilongwe"] },
+        { label: "Lilongwe City", layer: district30mLayers["Lilongwe City"] },
+        { label: "Machinga", layer: district30mLayers["Machinga"] },
+        { label: "Mangochi", layer: district30mLayers["Mangochi"] },
+        { label: "Mchinji", layer: district30mLayers["Mchinji"] },
+        { label: "Mulanje", layer: district30mLayers["Mulanje"] },
+        { label: "Mwanza", layer: district30mLayers["Mwanza"] },
+        { label: "Mzimba", layer: district30mLayers["Mzimba"] },
+        { label: "Mzuzu City", layer: district30mLayers["Mzuzu City"] },
+        { label: "Neno", layer: district30mLayers["Neno"] },
+        { label: "Nkhatabay", layer: district30mLayers["Nkhatabay"] },
+        { label: "Nkhotakota", layer: district30mLayers["Nkhotakota"] },
+        { label: "Nsanje", layer: district30mLayers["Nsanje"] },
+        { label: "Ntcheu", layer: district30mLayers["Ntcheu"] },
+        { label: "Ntchisi", layer: district30mLayers["Ntchisi"] },
+        { label: "Phalombe", layer: district30mLayers["Phalombe"] },
+        { label: "Rumphi", layer: district30mLayers["Rumphi"] },
+        { label: "Salima", layer: district30mLayers["Salima"] },
+        { label: "Thyolo", layer: district30mLayers["Thyolo"] },
+        { label: "Unknown District", layer: district30mLayers["Unknown District"] },
+        { label: "Zomba", layer: district30mLayers["Zomba"] },
+        { label: "Zomba City", layer: district30mLayers["Zomba City"] }
+      ] },
       { label: '<span class=\"layer-folder-title\">100m Vulnerability</span><br /><table><tr><td style=\"text-align: center;\"><img src=\"legend/100m_polygons_simplified_9_00000.png\" /></td><td> Baseline </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/100m_polygons_simplified_9_00001.png\" /></td><td> Low </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/100m_polygons_simplified_9_00002.png\" /></td><td> Medium </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/100m_polygons_simplified_9_00003.png\" /></td><td> High </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/100m_polygons_simplified_9_00004.png\" /></td><td> Critical </td></tr></table>', children: [
         { label: "Balaka", layer: district100mLayers["Balaka"] },
         { label: "Blantyre", layer: district100mLayers["Blantyre"] },
@@ -1421,6 +1518,10 @@
     // 100m district selection: only one district can be active at a time.
     map.on('overlayadd', function(e) { Object.keys(district100mLayers).forEach(function(name) { if (e.layer === district100mLayers[name]) load100mDistrict(name); }); });
     map.on('overlayremove', function(e) { Object.keys(district100mLayers).forEach(function(name) { if (e.layer === district100mLayers[name] && active100mDistrict === name) active100mDistrict = null; }); });
+
+    // 30m district selection: only one district can be active at a time.
+    map.on('overlayadd', function(e) { Object.keys(district30mLayers).forEach(function(name) { if (e.layer === district30mLayers[name]) load30mDistrict(name); }); });
+    map.on('overlayremove', function(e) { Object.keys(district30mLayers).forEach(function(name) { if (e.layer === district30mLayers[name] && active30mDistrict === name) active30mDistrict = null; }); });
 
     // ===========================================================
     // === INJECT OPACITY SLIDERS INTO THE LAYER TREE ===
@@ -1622,7 +1723,7 @@
 
       var el = {
         kpiFlagging: document.getElementById('kpiFlagging'),
-        kpiImmediate: document.getElementById('kpiImmediate'),
+      //  kpiImmediate: document.getElementById('kpiImmediate'),
         kpi30Total: document.getElementById('kpi30Total'),
         kpi100Total: document.getElementById('kpi100Total'),
 
@@ -1670,7 +1771,7 @@
           kpi30CriticalVisible: 0,
           kpi100CriticalVisible: 0,
           kpiSum: 0,
-          kpiImmediate: 0,
+        //  kpiImmediate: 0,
           total30: 0,
           total100: 0,
           '30m': { critical: 0, high: 0, moderate: 0, low: 0, baseline: 0 },
@@ -1683,7 +1784,7 @@
           var c30 = parseFloat(props['c_30m_p']);
           var c100 = parseFloat(props['c_100m_p']);
           var ghvi = parseFloat(props['GHVI_Score']);
-          var c15m = parseFloat(props['c_15m_p']);
+        //  var c15m = parseFloat(props['c_15m_p']);
 
           var cls30 = get30mClass(c30);
           var cls100 = get100mClass(c100);
@@ -1730,9 +1831,9 @@
             counts.kpi100CriticalVisible++;
           }
 
-          if (visible && c15m > 0) {
-            counts.kpiImmediate++;
-          }
+          // if (visible && c15m > 0) {
+          //   counts.kpiImmediate++;
+          // }
         });
 
         counts.kpiSum = counts.kpi30CriticalVisible + counts.kpi100CriticalVisible;
@@ -1744,7 +1845,7 @@
         var c = computeCounts();
 
         el.kpiFlagging.textContent = fmt(c.kpiSum);
-        el.kpiImmediate.textContent = fmt(c.kpiImmediate);
+        // el.kpiImmediate.textContent = fmt(c.kpiImmediate);
         el.kpi30Total.textContent = fmt(c.total30);
         el.kpi100Total.textContent = fmt(c.total100);
 
