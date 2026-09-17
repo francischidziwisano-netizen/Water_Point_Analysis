@@ -146,18 +146,59 @@
       gap: 7px;
     }
 
-    .kpi-card.featured {
-      grid-column: auto;
-      border-color: rgba(255, 107, 107, .18);
-      min-height: 88px;
+    /* Full-width featured card for critical tiers */
+    .kpi-card.critical-featured {
+      grid-column: 1 / -1;
+      min-height: 100px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, rgba(231, 76, 60, .18), rgba(255, 59, 59, .10));
+      border: 1px solid rgba(255, 59, 59, .40);
+      border-radius: 14px;
+      box-shadow: 0 0 0 1px rgba(255, 59, 59, .15), 0 4px 18px rgba(255, 59, 59, .12);
+      position: relative;
+      overflow: hidden;
     }
 
-    .kpi-card.featured.immediate {
-      border-color: rgba(255, 59, 59, .28);
+    .kpi-card.critical-featured::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #ff3b3b, #ff6b6b, #ff3b3b);
+      border-radius: 14px 14px 0 0;
     }
 
-    .kpi-card.featured.immediate .kpi-value {
-      color: var(--immediate);
+    .kpi-card.critical-featured .kpi-label {
+      color: #ffb3b3;
+      font-size: 9px;
+    }
+
+    .kpi-card.critical-featured .kpi-value {
+      color: #ff3b3b;
+      font-size: 32px;
+      text-shadow: 0 0 18px rgba(255, 59, 59, .45);
+      margin-top: 2px;
+    }
+
+    .kpi-card.critical-featured .kpi-sub {
+      color: #d98a8a;
+      font-size: 8px;
+      margin-top: 2px;
+    }
+
+    .kpi-card.critical-featured .critical-badge {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      background: rgba(255, 59, 59, .25);
+      color: #ff8a8a;
+      border: 1px solid rgba(255, 59, 59, .45);
+      border-radius: 20px;
+      padding: 2px 9px;
+      font-size: 7px;
+      font-weight: 800;
+      letter-spacing: .8px;
+      text-transform: uppercase;
     }
 
     .kpi-card {
@@ -183,8 +224,6 @@
       line-height: 1;
       font-weight: 800;
     }
-
-    .kpi-card.featured .kpi-value { color: var(--flagging); }
 
     .kpi-sub {
       margin-top: 5px;
@@ -562,13 +601,13 @@
       .dashboard-scroll { padding: 9px; }
       .dashboard-header { padding: 10px 13px; }
       .kpi-grid { grid-template-columns: repeat(4, 1fr); }
-      .kpi-card.featured { grid-column: auto; }
+      .kpi-card.critical-featured { grid-column: 1 / -1; }
     }
 
     @media (max-width: 600px) {
       .dashboard-sidebar { height: 54vh; }
       .kpi-grid { grid-template-columns: 1fr 1fr; }
-      .kpi-card.featured { grid-column: 1 / -1; }
+      .kpi-card.critical-featured { grid-column: 1 / -1; }
       .filter-list { grid-template-columns: 1fr 1fr; }
       .map-title-card { max-width: 200px; }
     }
@@ -628,19 +667,15 @@
           </div>
 
           <div class="kpi-grid">
-            <div class="kpi-card featured">
-              <div class="kpi-label">100m & 30m Critical Vulnerability Tiers</div>
+            <!-- Critical Featured Card (full width, top) -->
+            <div class="kpi-card critical-featured">
+              <span class="critical-badge">⚠ CRITICAL</span>
+              <div class="kpi-label">100m &amp; 30m Critical Vulnerability Tiers</div>
               <div class="kpi-value" id="kpiFlagging">0</div>
               <div class="kpi-sub">30m critical + 100m critical (visible)</div>
             </div>
 
-            <!-- <div class="kpi-card featured immediate">
-              <div class="kpi-label"> 15m Automatic Override
- Vulnerability </div>
-              <div class="kpi-value" id="kpiImmediate">0</div>
-              <div class="kpi-sub"> Water Points </div>
-            </div> -->
-
+            <!-- Two cards below: 30m and 100m totals -->
             <div class="kpi-card">
               <div class="kpi-label">30m Vulnerability Tiers</div>
               <div class="kpi-value" id="kpi30Total">0</div>
@@ -1018,7 +1053,6 @@
       style: style_mwi_admin3_nso_5_0,
     });
     bounds_group.addLayer(layer_mwi_admin3_nso_5);
-    map.addLayer(layer_mwi_admin3_nso_5);
 
     // === ADMIN2 ===
     function pop_mwi_admin2_em_6(feature, layer) {
@@ -1043,7 +1077,6 @@
       style: style_mwi_admin2_em_6_0,
     });
     bounds_group.addLayer(layer_mwi_admin2_em_6);
-    map.addLayer(layer_mwi_admin2_em_6);
 
     // === FACILITIES ===
     function pop_facilities_7(feature, layer) {
@@ -1070,7 +1103,6 @@
       },
     });
     bounds_group.addLayer(layer_facilities_7);
-    map.addLayer(layer_facilities_7);
 
     // === EDUCATION FACILITIES ===
     function pop_education_facilities_polygons_8(feature, layer) {
@@ -1095,7 +1127,6 @@
       style: style_education_facilities_polygons_8_0,
     });
     bounds_group.addLayer(layer_education_facilities_polygons_8);
-    map.addLayer(layer_education_facilities_polygons_8);
 
     // === 100M POLYGONS ===
     // === 100M VULNERABILITY — DYNAMIC DISTRICT LOADING ===
@@ -1318,39 +1349,31 @@
       var popupContent = '<table>' +
         '<tr><td colspan="2">' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
         '<tr><td colspan="2">' + (feature.properties['Type'] !== null ? autolinker.link(String(feature.properties['Type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><td colspan="2">' + (feature.properties['Date of in'] !== null ? autolinker.link(String(feature.properties['Date of in']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        // '<tr><th scope="row">Depth from Groundwater (m)</th><td class="visible-with-data" id="Depth (m)">' + (feature.properties['Depth (m)'] !== null ? autolinker.link(String(feature.properties['Depth (m)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +        
+        '<tr><td colspan="2">' + (feature.properties['dinst'] !== null ? autolinker.link(String(feature.properties['dinst']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
         '<tr><td colspan="2">' + (feature.properties['admin2'] !== null ? autolinker.link(String(feature.properties['admin2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
         '<tr><td colspan="2">' + (feature.properties['admin3'] !== null ? autolinker.link(String(feature.properties['admin3']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">GHVI_Score</th><td class="visible-with-data" id="GHVI_Score">' + (feature.properties['GHVI_Score'] !== null ? autolinker.link(String(feature.properties['GHVI_Score']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">Depth from Groundwater (m)</th><td class="visible-with-data" id="depth_2_gw">' + (feature.properties['depth_2_gw'] !== null ? autolinker.link(String(feature.properties['depth_2_gw']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">Distance from Nearest Fault</th><td class="visible-with-data" id="HubDist">' + (feature.properties['HubDist'] !== null ? autolinker.link(String(feature.properties['HubDist']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +                
-        '<tr><th scope="row">15m Vulnerability</th><td class="visible-with-data" id="c_15m_p">' + (feature.properties['c_15m_p'] !== null ? autolinker.link(String(feature.properties['c_15m_p']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">15-30m Vulnerability</th><td class="visible-with-data" id="c_15-30m_p">' + (feature.properties['c_15-30m_p'] !== null ? autolinker.link(String(feature.properties['c_15-30m_p']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">30m Vulnerability</th><td class="visible-with-data" id="c_30m_p">' + (feature.properties['c_30m_p'] !== null ? autolinker.link(String(feature.properties['c_30m_p']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">100m Vulnerability</th><td class="visible-with-data" id="c_100m_p">' + (feature.properties['c_100m_p'] !== null ? autolinker.link(String(feature.properties['c_100m_p']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">H_Score</th><td class="visible-with-data" id="H_Score">' + (feature.properties['H_Score'] !== null ? autolinker.link(String(feature.properties['H_Score']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">P_Score</th><td class="visible-with-data" id="P_Score">' + (feature.properties['P_Score'] !== null ? autolinker.link(String(feature.properties['P_Score']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">F_Score</th><td class="visible-with-data" id="F_Score">' + (feature.properties['F_Score'] !== null ? autolinker.link(String(feature.properties['F_Score']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">S_score</th><td class="visible-with-data" id="S_score">' + (feature.properties['S_score'] !== null ? autolinker.link(String(feature.properties['S_score']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">N_Score</th><td class="visible-with-data" id="N_Score">' + (feature.properties['N_Score'] !== null ? autolinker.link(String(feature.properties['N_Score']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">Clay Content</th><td class="visible-with-data" id="clay_conte">' + (feature.properties['clay_conte'] !== null ? autolinker.link(String(feature.properties['clay_conte']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">Sand_conte</th><td class="visible-with-data" id="sand_conte">' + (feature.properties['sand_conte'] !== null ? autolinker.link(String(feature.properties['sand_conte']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        '<tr><th scope="row">Silt_conte</th><td class="visible-with-data" id="silt_conte">' + (feature.properties['silt_conte'] !== null ? autolinker.link(String(feature.properties['silt_conte']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +       
-        // '<tr><td colspan="2">' + (feature.properties['n'] !== null ? autolinker.link(String(feature.properties['n']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        // '<tr><td colspan="2">' + (feature.properties['distance'] !== null ? autolinker.link(String(feature.properties['distance']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        // '<tr><td colspan="2">' + (feature.properties['feature_x'] !== null ? autolinker.link(String(feature.properties['feature_x']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        // '<tr><td colspan="2">' + (feature.properties['feature_y'] !== null ? autolinker.link(String(feature.properties['feature_y']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        // '<tr><td colspan="2">' + (feature.properties['nearest_x'] !== null ? autolinker.link(String(feature.properties['nearest_x']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        // '<tr><td colspan="2">' + (feature.properties['nearest_y'] !== null ? autolinker.link(String(feature.properties['nearest_y']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
-        // '<tr><td colspan="2">' + (feature.properties['crit30_100'] !== null ? autolinker.link(String(feature.properties['crit30_100']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">GHVI Score</th><td class="visible-with-data" id="ghvi">' + (feature.properties['ghvi'] !== null ? autolinker.link(String(feature.properties['ghvi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">Depth from Groundwater (m)</th><td class="visible-with-data" id="depth_gw">' + (feature.properties['depth_gw'] !== null ? autolinker.link(String(feature.properties['depth_gw']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">Distance from Nearest Fault</th><td class="visible-with-data" id="dist_f">' + (feature.properties['dist_f'] !== null ? autolinker.link(String(feature.properties['dist_f']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +                
+        '<tr><th scope="row">15m Vulnerability</th><td class="visible-with-data" id="15m">' + (feature.properties['15m'] !== null ? autolinker.link(String(feature.properties['15m']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">15-30m Vulnerability</th><td class="visible-with-data" id="15-30m">' + (feature.properties['15-30m'] !== null ? autolinker.link(String(feature.properties['15-30m']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">30m Vulnerability</th><td class="visible-with-data" id="30m">' + (feature.properties['30m'] !== null ? autolinker.link(String(feature.properties['30m']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">100m Vulnerability</th><td class="visible-with-data" id="100m">' + (feature.properties['100m'] !== null ? autolinker.link(String(feature.properties['100m']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">H Score</th><td class="visible-with-data" id="hs">' + (feature.properties['hs'] !== null ? autolinker.link(String(feature.properties['hs']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">P Score</th><td class="visible-with-data" id="ps">' + (feature.properties['ps'] !== null ? autolinker.link(String(feature.properties['ps']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">F Score</th><td class="visible-with-data" id="fs">' + (feature.properties['fs'] !== null ? autolinker.link(String(feature.properties['fs']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">S Score</th><td class="visible-with-data" id="ss">' + (feature.properties['ss'] !== null ? autolinker.link(String(feature.properties['ss']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">N Score</th><td class="visible-with-data" id="ns">' + (feature.properties['ns'] !== null ? autolinker.link(String(feature.properties['ns']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">Clay Content</th><td class="visible-with-data" id="cc">' + (feature.properties['cc'] !== null ? autolinker.link(String(feature.properties['cc']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">Sand Content</th><td class="visible-with-data" id="sac">' + (feature.properties['sac'] !== null ? autolinker.link(String(feature.properties['sac']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +
+        '<tr><th scope="row">Silt Content</th><td class="visible-with-data" id="sc">' + (feature.properties['sc'] !== null ? autolinker.link(String(feature.properties['sc']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr>' +       
         '</table>';
       var content = removeEmptyRowsFromPopupContent(popupContent, feature);
       layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
       layer.bindPopup(content, { maxHeight: 400 });
     }
     function style_download_12_0(feature) {
-      var ghvi = feature.properties['GHVI_Score'];
+      var ghvi = feature.properties['ghvi'];
       if (ghvi >= 0 && ghvi <= 4) return { pane: 'pane_download_12', radius: 4.0, opacity: 1, color: 'rgba(255,255,255,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(114,155,111,1.0)', interactive: true };
       if (ghvi >= 4 && ghvi <= 6) return { pane: 'pane_download_12', radius: 4.0, opacity: 1, color: 'rgba(255,255,255,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,244,0,1.0)', interactive: true };
       if (ghvi >= 6 && ghvi <= 8) return { pane: 'pane_download_12', radius: 4.0, opacity: 1, color: 'rgba(255,255,255,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,156,0,1.0)', interactive: true };
@@ -1372,35 +1395,6 @@
     });
     bounds_group.addLayer(layer_download_12);
     map.addLayer(layer_download_12);
-
-    // === 15M CRITICAL ===
-    // function pop_15m_critical_13(feature, layer) {
-    //   var popupContent = '<table><tr><td colspan="2">' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Locati'] !== null ? autolinker.link(String(feature.properties['GPS Locati']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><td colspan="2">' + (feature.properties['GPS Loca_1'] !== null ? autolinker.link(String(feature.properties['GPS Loca_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr><tr><th scope="row">c_15m_p</th><td class="visible-with-data" id="c_15m_p">' + (feature.properties['c_15m_p'] !== null ? autolinker.link(String(feature.properties['c_15m_p']).replace(/'/g, '\'').toLocaleString()) : '') + '</td></tr></table>';
-    //   var content = removeEmptyRowsFromPopupContent(popupContent, feature);
-    //   layer.on('popupopen', function(e) { addClassToPopupIfMedia(content, e.popup); });
-    //   layer.bindPopup(content, { maxHeight: 400 });
-    // }
-    // function style_15m_critical_13_0(feature) {
-    //   var v = feature.properties['c_15m_p'];
-    //   if (v >= 0 && v <= 0.99) return { pane: 'pane_15m_critical_13', radius: 4.0, opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,255,255,0.0)', interactive: false };
-    //   if (v >= 1) return { pane: 'pane_15m_critical_13', radius: 4.0, opacity: 1, color: 'rgba(35,35,35,1.0)', dashArray: '', lineCap: 'butt', lineJoin: 'miter', weight: 1, fill: true, fillOpacity: 1, fillColor: 'rgba(255,24,0,1.0)', interactive: false };
-    // }
-    // map.createPane('pane_15m_critical_13');
-    // map.getPane('pane_15m_critical_13').style.zIndex = 417;
-    // map.getPane('pane_15m_critical_13').style['mix-blend-mode'] = 'normal';
-    // var layer_15m_critical_13 = new L.geoJson(json_15m_critical_13, {
-    //   attribution: '',
-    //   interactive: false,
-    //   dataVar: 'json_15m_critical_13',
-    //   layerName: 'layer_15m_critical_13',
-    //   pane: 'pane_15m_critical_13',
-    //   onEachFeature: pop_15m_critical_13,
-    //   pointToLayer: function(feature, latlng) {
-    //     return L.circleMarker(latlng, style_15m_critical_13_0(feature));
-    //   },
-    // });
-    // bounds_group.addLayer(layer_15m_critical_13);
-    // map.addLayer(layer_15m_critical_13);
 
     // === MAFD ===
     function pop_MAFD_14(feature, layer) {
@@ -1425,20 +1419,16 @@
       style: style_MAFD_14_0,
     });
     bounds_group.addLayer(layer_MAFD_14);
-    map.addLayer(layer_MAFD_14);
 
     // === LAYER TREE (raster labels carry data attrs for slider injection) ===
     var overlaysTree = [
       { label: '<img src="legend/MAFD_14.png" /> Stractural Faults', layer: layer_MAFD_14 },
-    //  { label: '15m Automatic Override<br /><table><tr><td style="text-align: center;"><img src="legend/15m_critical_13_LowVulnerability0.png" /></td><td>Low Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/15m_critical_13_CriticalVulnerability1.png" /></td><td>Critical Vulnerability</td></tr></table>', layer: layer_15m_critical_13 },
       { label: 'Water Point <br /><table><tr><td style="text-align: center;"><img src="legend/download_12_LowVulnerability0.png" /></td><td>Low Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/download_12_ModerateVulnerability1.png" /></td><td>Moderate Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/download_12_HighVulnerability2.png" /></td><td>High Vulnerability</td></tr><tr><td style="text-align: center;"><img src="legend/download_12_CriticalVulnerability3.png" /></td><td>Critical Vulnerability</td></tr></table>', layer: layer_download_12 },
-    //   { label: 'outer_ring_simplified <br /><table><tr><td style="text-align: center;"><img src="legend/outer_ring_simplified_11_00000.png" /></td><td>0.0 - 0.0</td></tr><tr><td style="text-align: center;"><img src="legend/outer_ring_simplified_11_00001.png" /></td><td>0.0 - 0.0</td></tr></table>', layer: layer_outer_ring_simplified_11 },
-      // { label: '30m Vulnerability <br /><table><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00000.png" /></td><td> Baseline </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00001.png" /></td><td> Low </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00002.png" /></td><td> Medium </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00003.png" /></td><td> High </td></tr><tr><td style="text-align: center;"><img src="legend/30m_polygons_simplified_10_00004.png" /></td><td> Critical </td></tr></table>', layer: layer_30m_polygons_simplified_10 },
       { label: '<span class=\"layer-folder-title\">30m Vulnerability</span><br /><table><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00000.png\" /></td><td> Baseline </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00001.png\" /></td><td> Low </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00002.png\" /></td><td> Medium </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00003.png\" /></td><td> High </td></tr><tr><td style=\"text-align: center;\"><img src=\"legend/30m_polygons_simplified_10_00004.png\" /></td><td> Critical </td></tr></table>', children: [
         { label: "Balaka", layer: district30mLayers["Balaka"] },
         { label: "Blantyre", layer: district30mLayers["Blantyre"] },
         { label: "Blantyre City", layer: district30mLayers["Blantyre City"] },
-        { label: "Chikwawa", layer: district100mLayers["Chikwawa"] },
+        { label: "Chikwawa", layer: district30mLayers["Chikwawa"] },
         { label: "Chiradzulu", layer: district30mLayers["Chiradzulu"] },
         { label: "Chitipa", layer: district30mLayers["Chitipa"] },
         { label: "Dedza", layer: district30mLayers["Dedza"] },
@@ -1723,7 +1713,6 @@
 
       var el = {
         kpiFlagging: document.getElementById('kpiFlagging'),
-      //  kpiImmediate: document.getElementById('kpiImmediate'),
         kpi30Total: document.getElementById('kpi30Total'),
         kpi100Total: document.getElementById('kpi100Total'),
 
@@ -1771,7 +1760,6 @@
           kpi30CriticalVisible: 0,
           kpi100CriticalVisible: 0,
           kpiSum: 0,
-        //  kpiImmediate: 0,
           total30: 0,
           total100: 0,
           '30m': { critical: 0, high: 0, moderate: 0, low: 0, baseline: 0 },
@@ -1781,10 +1769,9 @@
 
         allFeatures.forEach(function(f) {
           var props = f.properties;
-          var c30 = parseFloat(props['c_30m_p']);
-          var c100 = parseFloat(props['c_100m_p']);
-          var ghvi = parseFloat(props['GHVI_Score']);
-        //  var c15m = parseFloat(props['c_15m_p']);
+          var c30 = parseFloat(props['30m']);
+          var c100 = parseFloat(props['100m']);
+          var ghvi = parseFloat(props['ghvi']);
 
           var cls30 = get30mClass(c30);
           var cls100 = get100mClass(c100);
@@ -1830,10 +1817,6 @@
           if (cls100 === 'critical' && activeFilters['100m-critical']) {
             counts.kpi100CriticalVisible++;
           }
-
-          // if (visible && c15m > 0) {
-          //   counts.kpiImmediate++;
-          // }
         });
 
         counts.kpiSum = counts.kpi30CriticalVisible + counts.kpi100CriticalVisible;
@@ -1845,7 +1828,6 @@
         var c = computeCounts();
 
         el.kpiFlagging.textContent = fmt(c.kpiSum);
-        // el.kpiImmediate.textContent = fmt(c.kpiImmediate);
         el.kpi30Total.textContent = fmt(c.total30);
         el.kpi100Total.textContent = fmt(c.total100);
 
@@ -1971,9 +1953,9 @@
         layer_download_12.eachLayer(function(layer) {
           if (!layer.feature) return;
           var props = layer.feature.properties;
-          var c30 = parseFloat(props['c_30m_p']);
-          var c100 = parseFloat(props['c_100m_p']);
-          var ghvi = parseFloat(props['GHVI_Score']);
+          var c30 = parseFloat(props['30m']);
+          var c100 = parseFloat(props['100m']);
+          var ghvi = parseFloat(props['ghvi']);
 
           var cls30 = get30mClass(c30);
           var cls100 = get100mClass(c100);
@@ -2007,6 +1989,21 @@
 
       window._dashboard = { updateDashboard: updateDashboard, applyMapFilters: applyMapFilters, activeFilters: activeFilters };
     })();
+
+    // ===========================================================
+    // === HIDE NON-CRITICAL LAYERS BY DEFAULT ON LOAD ===
+    // Admin3/TA, MAFD/Faults, School, Health Facilities
+    // These are NOT added to the map initially — user must
+    // select them from the layer tree when needed.
+    // ===========================================================
+    // Ensure these layers are not on the map at startup
+    map.removeLayer(layer_mwi_admin3_nso_5);
+    map.removeLayer(layer_MAFD_14);
+    map.removeLayer(layer_education_facilities_polygons_8);
+    map.removeLayer(layer_facilities_7);
+
+    // Also ensure overlay layers that are not needed by default are off
+    // (The layer tree will show them unchecked / not selected)
   </script>
 </body>
 </html>
